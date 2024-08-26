@@ -53,27 +53,32 @@ def register():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
+        verificacion = request.form["verificacion"]
         db = get_db()
         error = None
 
         if not username:
-            error = "Nombre de usuario requerido."
+            error = "El nombre de usuario es obligatorio."
         elif not password:
-            error = "Contraseña requerida."
-
+            error = "La contraseña es obligatoria."
+        elif not verificacion:
+             error = "La verificacion es obligatoria."
+        elif verificacion != password: 
+            error = "La verificacion es incorrecta."
         if error is None:
             try:
-
+                
                 db.execute(
                     "INSERT INTO user (username, password) VALUES (?, ?)",
                     (username, generate_password_hash(password)),
                 )
 
+
                 db.commit()
             except db.IntegrityError:
                 # The username was already taken, which caused the
                 # commit to fail. Show a validation error.
-                error = f"Usuario {username} Ya esta registrado."
+                error = f"User {username} is already registered."
             else:
                 # Success, go to the login page.
                 return redirect(url_for("auth.login"))
@@ -83,7 +88,7 @@ def register():
     return render_template("auth/register.html")
 
 
-@bp.route("/login", methods=("GET", "POST"))
+@bp.route("/login", methods=("GET", "POST")) 
 def login():
     """Log in a registered user by adding the user id to the session."""
     if request.method == "POST":
@@ -96,10 +101,9 @@ def login():
         ).fetchone()
 
         if user is None:
-            error = "Nombre de Usuario o Contraseña es Incorrecto."
+            error = "Usuario o contraseña incorrectos"
         elif not check_password_hash(user["password"], password):
-            error = "Nombre de Usuario o Contraseña es Incorrecto."
-
+            error = "Usuario o contraseña incorrectos"
         if error is None:
             # store the user id in a new session and return to the index
             session.clear()

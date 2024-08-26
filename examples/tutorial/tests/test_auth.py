@@ -1,41 +1,43 @@
 import pytest
-from flask import g
+from flask import Flask, g
 from flask import session
-from werkzeug.security import check_password_hash
 
 from flaskr.db import get_db
-
+from tests.conftest import AuthActions
+from werkzeug.security import check_password_hash
 
 def test_register(client, app):
     # test that viewing the page renders without template errors
     assert client.get("/auth/register").status_code == 200
 
     # test that successful registration redirects to the login page
-    response = client.post("/auth/register", data={"username": "a", "password": "b"})
-    assert response.headers["Location"] 
+    response = client.post("/auth/register", data={"username": "a", "password": "b", "verificacion": "b"})
+    assert "/auth/login" in response.headers["Location"] 
 
     # test that the user was inserted into the database
     with app.app_context():
-            usuario = get_db().execute("SELECT * FROM user WHERE username = 'a'").fetchone()
-            assert (usuario is not None)
-            assert (check_password_hash(usuario["password"], "b"))
+         
+         usuario = get_db().execute("SELECT * FROM user WHERE username = 'a'").fetchone()
+         assert(usuario is not None)
+         assert(check_password_hash(usuario["password"],"b"))
+
+
 
 @pytest.mark.parametrize(
-    ("username", "password", "message"),
-    (
-        ("", "", "Nombre de usuario requerido."),
-        ("a", "", "Contraseña requerida."),
-        ("test", "test", "Ya esta registrado."),
-    ),
+    ("username", "password","verificacion" ,"message"),
+    (("", "1234", "1234", "El nombre de usuario es obligatorio."),
+     ("a", "", "1234", "La contraseña es obligatoria."),
+     ("a", "1234", "", "La verificacion es obligatoria."),
+     ("a", "1234", "4321", "La verificacion es incorrecta.")),
 )
-def test_register_validate_input(client, username, password, message):
+def test_register_validate_input(client, username, password,verificacion, message):
     response = client.post(
-        "/auth/register", data={"username": username, "password": password}
+        "/auth/register", data={"username": username, "password": password, "verificacion": verificacion}
     )
     assert message in response.data.decode()
 
 
-def test_login(client, auth):
+def test_login(client, auth: AuthActions):
     # test that viewing the page renders without template errors
     assert client.get("/auth/login").status_code == 200
 
@@ -53,15 +55,15 @@ def test_login(client, auth):
 
 @pytest.mark.parametrize(
     ("username", "password", "message"),
-    (("a", "test", "Nombre de Usuario o Contraseña es Incorrecto.")
-     , ("test", "a", "Nombre de Usuario o Contraseña es Incorrecto.")),
+    (("a", "test", "Usuario o contraseña incorrectos"), 
+     ("test", "a", "Usuario o contraseña incorrectos")),
 )
-def test_login_validate_input(auth, username, password, message):
+def test_login_validate_input(auth: AuthActions, username, password, message):
     response = auth.login(username, password)
     assert message in response.data.decode()
 
 
-def test_logout(client, auth):
+def test_logout(client, auth: AuthActions):
     auth.login()
 
     with client:
